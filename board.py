@@ -73,19 +73,33 @@ def create_random(k, e_block, e_dev):
 
 
 def validate(board):
-    """[summary]
+    """Test if the board a valid answer
 
     Arguments:
-        board {[type]} -- [description]
+        board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
     """
-    pass
+    k = int(np.sqrt(board.shape[0]))
+    for row in board:
+        u = np.unique(row[row != 0])
+        if u.shape[0] != board.shape[0]:
+            return False
+    for col in np.transpose(board):
+        u = np.unique(row[row != 0])
+        if u.shape[0] != board.shape[0]:
+            return False
+    for i in range(k):
+        for j in range(k):
+            u = np.unique(board[i*k:(i+1)*k, j*k:(j+1)*k])
+            if u.shape[0] != board.shape[0]:
+                return False
+    return True
 
 
 def remaining_values(board, order=0):
     """[summary]
 
     Arguments:
-        board {[N, N]} -- the board.
+        board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
         order {int} -- The order of forward checking.
     """
 
@@ -97,3 +111,5 @@ board, stones, question = create_random(3, 2, 0.2)
 print(board)
 print(stones)
 print(question)
+print(validate(board))
+print(validate(question))
