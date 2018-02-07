@@ -73,11 +73,19 @@ def empirical(k, e, s, N=10000):
 
 if __name__ == "__main__":
     print("Theoretical result: ")
-    pmf, E = theoretical(5, 3, 0.8)
-    print(pmf)
-    print(E)
+    exp_pmf, exp_E = theoretical(5, 3, 0.8)
+    print("PMF[i]: ")
+    print(exp_pmf)
+    print("E[i] = " + str(exp_E))
 
     print("Empirical result: ")
-    pmf, E = empirical(5, 3, 0.8)
-    print(pmf)
-    print(E)
+    obs_pmf, obs_E = empirical(5, 3, 0.8)
+    print("PMF[i]: ")
+    print(obs_pmf)
+    print("E[i] = " + str(obs_E))
+
+    print("Chi-square statistics: ")
+    chisq, p = sp.stats.chisquare(f_obs=obs_pmf*1000,
+                                  f_exp=exp_pmf*1000)
+    print("chisq = " + str(chisq))
+    print("p = " + str(p))
