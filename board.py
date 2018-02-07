@@ -1,4 +1,6 @@
 import numpy as np
+import scipy.stats
+import scipy as sp
 
 
 def create_random(k, e_block, e_dev):
@@ -13,6 +15,9 @@ def create_random(k, e_block, e_dev):
     if k < 2:
         raise Exception("Block width k < 2.")
 
+    if e_block > k*k:
+        raise Exception("Cannot remove more than what could be in a block.")
+
     width = k * k
 
     # board generation.
@@ -21,27 +26,25 @@ def create_random(k, e_block, e_dev):
         for j in range(k):
             if i == 0 and j == 0:
                 # bootstrap an initial grid.
-                board[0:k, 0:k] = np.reshape(np.arange(1, k * k + 1), [k, k])
+                board[0:k, 0:k] = np.reshape(np.arange(1, k*k+1), [k, k])
             elif i >= 1 and j == 0:
                 # round-robin on block columns.
-                board[i * k:(i + 1) * k, 1:k] = board[
-                    (i - 1) * k:i * k, 0:k - 1]
-                board[i * k:(i + 1) * k, 0] = board[(i - 1) * k:i * k, k - 1]
+                board[i*k:(i+1)*k, 1:k] = board[(i-1)*k:i*k, 0:k-1]
+                board[i*k:(i+1)*k, 0] = board[(i-1)*k:i*k, k-1]
             else:
                 # round-robin on rows.
-                board[i * k + 1:(i + 1) * k, j * k:(j + 1) * k] = board[
-                    i * k:(i + 1) * k - 1, (j - 1) * k:j * k]
-                board[i * k, j * k:(j + 1) * k] = board[
-                    (i + 1) * k - 1, (j - 1) * k:j * k]
+                board[i*k+1:(i+1)*k, j*k:(j+1)*k] = board[i *
+                                                          k:(i+1)*k-1, (j-1)*k:j*k]
+                board[i*k, j*k:(j+1)*k] = board[(i+1)*k-1, (j-1)*k:j*k]
 
     # structure-wise shuffling.
     row_shuffle = np.arange(0, width)
     col_shuffle = np.arange(0, width)
 
     for i in range(k):
-        np.random.shuffle(row_shuffle[i * k:(i + 1) * k])
+        np.random.shuffle(row_shuffle[i*k:(i+1)*k])
     for j in range(k):
-        np.random.shuffle(col_shuffle[j * k:(j + 1) * k])
+        np.random.shuffle(col_shuffle[j*k:(j+1)*k])
 
     t1 = np.zeros([width, width], dtype=np.int)
     for i in range(width):
@@ -59,15 +62,17 @@ def create_random(k, e_block, e_dev):
 
     # take away elements.
     stones = np.ones([width, width], dtype=np.int)
+    rvt = np.floor(sp.stats.truncnorm.rvs(
+        0, k, loc=e_block, scale=e_dev, size=k*k))
     for i in range(k):
         for j in range(k):
-            n_takeawys = int(np.random.normal(e_block, e_dev))
+            n_takeawys = int(rvt[j + i*k])
             takeaway_rows = np.random.randint(0, k, n_takeawys)
             takeaway_columns = np.random.randint(0, k, n_takeawys)
 
             for m in takeaway_rows:
                 for n in takeaway_columns:
-                    stones[i * k + m, j * k + n] = 0
+                    stones[i*k + m, j*k + n] = 0
 
     return [board, stones, board * stones]
 
@@ -102,12 +107,11 @@ def remaining_values(board, order=0):
         board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
         order {int} -- The order of forward checking.
     """
-
     pass
 
 
 # test
-board, stones, question = create_random(3, 2, 0.2)
+board, stones, question = create_random(3, 2, 0.3)
 print(board)
 print(stones)
 print(question)
