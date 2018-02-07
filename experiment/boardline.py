@@ -1,21 +1,58 @@
 import numpy as np
+import scipy as sp
+import scipy as special
+import scipy.stats
 from scipy.special import comb
+
+from blockline import theoretical as blk_theoretical
 
 
 def theoretical(k, e, s):
-    pass
+    pmf, _ = blk_theoretical(k, e, s)
+    conv_pmf = np.copy(pmf)
+    for i in range(1, k):
+        conv_pmf = np.convolve(conv_pmf, pmf)
+    E = 0.0
+    for i in range(k*k+1):
+        E += i*conv_pmf[i]
+    return conv_pmf, E
 
 
 def empirical(k, e, s, N=10000):
-    pass
+    board = np.zeros([k*k, k*k], dtype=np.int)
+    pmf = np.zeros([k*k+1])
+    E = 0.0
+
+    for n in range(N):
+        T = np.floor(sp.stats.truncnorm.rvs(
+            a=0, b=k, loc=e, scale=s, size=k*k))
+        for i in range(k):
+            for j in range(k):
+                block = board[i*k:(i+1)*k, j*k:(j+1)*k]
+                a = np.reshape(block, [k*k])
+                Tij = int(T[i*k + j])
+                a[:Tij] = 1
+                a[Tij:] = 0
+                np.random.shuffle(a)
+                board[i*k:(i+1)*k, j*k:(j+1)*k] = np.reshape(a, [k, k])
+        row_stats = np.sum(board, axis=1)
+        for t in row_stats:
+            pmf[t] += 1
+
+    pmf /= (k*k*N)
+    for i in range(k*k+1):
+        E += i*pmf[i]
+
+    return pmf, E
 
 
-print("Theoretical result: ")
-pmf, E = theoretical(10, 3, 0.8)
-print(pmf)
-print(E)
+if __name__ == "__main__":
+    print("Theoretical result: ")
+    pmf, E = theoretical(5, 3, 0.8)
+    print(pmf)
+    print(E)
 
-print("Empirical result: ")
-pmf, E = empirical(10, 3, 0.8)
-print(pmf)
-print(E)
+    print("Empirical result: ")
+    pmf, E = empirical(5, 3, 0.8)
+    print(pmf)
+    print(E)

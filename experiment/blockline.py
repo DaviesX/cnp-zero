@@ -17,7 +17,7 @@ def theoretical(k, e, s):
                  sp.stats.truncnorm.cdf(t, a=0, b=k, loc=e, scale=s))
         pmf[i] = marginal
         E += i*pmf[i]
-    return [pmf, E]
+    return pmf, E
 
 
 def empirical(k, e, s, N=10000):
@@ -37,17 +37,18 @@ def empirical(k, e, s, N=10000):
             pmf[t] += 1
 
     pmf /= (k*N)
-    for i in range(e+1):
+    for i in range(k+1):
         E += (pmf[i]*i)
-    return [pmf, E]
+    return pmf, E
 
 
-print("Theoretical result: ")
-pmf, E = theoretical(10, 3, 0.8)
-print(pmf)
-print(E)
+if __name__ == "__main__":
+    print("Theoretical result: ")
+    pmf, E = theoretical(5, 3, 0.8)
+    print(pmf)
+    print(E)
 
-print("Empirical result: ")
-pmf, E = empirical(10, 3, 0.8)
-print(pmf)
-print(E)
+    print("Empirical result: ")
+    pmf, E = empirical(5, 3, 0.8)
+    print(pmf)
+    print(E)
