@@ -5,6 +5,17 @@ from scipy.special import comb
 
 
 def theoretical(k, e, s):
+    """Compute the PMF of the number of take-aways occurred in each block row/col
+
+    Arguments:
+        k {int} -- width of the block.
+        e {int} -- expected number of take-aways in a block.
+        s {float} -- standard deviation of the number of take-aways.
+
+    Returns:
+        {[k], float} -- PMF and expectation.
+    """
+
     pmf = np.zeros([k+1])
     E = 0.0
     for i in range(0, k+1):
@@ -21,6 +32,20 @@ def theoretical(k, e, s):
 
 
 def empirical(k, e, s, N=10000):
+    """Sample of the PMF of the number of take-aways occurred in each block row/col
+
+    Arguments:
+        k {int} -- width of the block.
+        e {int} -- expected number of take-aways in a block.
+        s {float} -- standard deviation of the number of take-aways.
+
+    Keyword Arguments:
+        N {int} -- number of sample to be drawn (default: {10000})
+
+    Returns:
+        {[k], float} -- Sampled PMF and expectation.
+    """
+
     block = np.zeros([k, k], dtype=np.int)
     pmf = np.zeros([k+1])
     E = 0.0

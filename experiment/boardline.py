@@ -8,6 +8,17 @@ from blockline import theoretical as blk_theoretical
 
 
 def theoretical(k, e, s):
+    """Compute the PMF of the number of take-aways occurred in each board row/col
+
+    Arguments:
+        k {int} -- width of each block.
+        e {int} -- expected number of take-aways in each block.
+        s {float} -- standard deviation of the number of take-aways.
+
+    Returns:
+        {[k*(k-1)], float} -- PMF and expectation.
+    """
+
     pmf, _ = blk_theoretical(k, e, s)
     conv_pmf = np.copy(pmf)
     for i in range(1, k):
@@ -19,6 +30,20 @@ def theoretical(k, e, s):
 
 
 def empirical(k, e, s, N=10000):
+    """Sample of the PMF of the number of take-aways occurred in each board row/col
+
+    Arguments:
+        k {int} -- width of each block.
+        e {int} -- expected number of take-aways in each block.
+        s {float} -- variable of the number of take-aways.
+
+    Keyword Arguments:
+        N {int} -- number of sample to be drawn (default: {10000})
+
+    Returns:
+        {[k*(k-1), float]} -- Sampled PMF and expectation.
+    """
+
     board = np.zeros([k*k, k*k], dtype=np.int)
     pmf = np.zeros([k*k+1])
     E = 0.0
