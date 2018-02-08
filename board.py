@@ -11,6 +11,8 @@ def create_random(k, e_block, e_dev):
         k {int} -- width of each block.
         e_block {float} -- the expected number of removal for each block.
         e_dev {float} -- deviation from the removal expectation.
+    Returns:
+        {[k*k, k*k], [k*k, k*k], [k*k, k*k]} -- answer, free slots, question.
     """
     if k < 2:
         raise Exception("Block width k < 2.")
@@ -82,6 +84,8 @@ def validate(board):
 
     Arguments:
         board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
+    Returns:
+        {bool} -- whether the solution is valid.
     """
     k = int(np.sqrt(board.shape[0]))
     for row in board:
@@ -100,20 +104,68 @@ def validate(board):
     return True
 
 
-def remaining_values(board, order=0):
-    """[summary]
+def remaining_values(question):
+    """Compute a remaining value voxel.
 
     Arguments:
-        board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
-        order {int} -- The order of forward checking.
+        question {[N, N]} -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
+    Returns:
+        {[N, N, N]} -- a boolean tensor representing the remaining values for each slot.
     """
-    pass
+    N = question.shape[0]
+    k = int(np.sqrt(N))
+    universe = np.arange(1, N+1)
+    row_rvs = np.zeros([N, N], dtype=np.bool)
+    col_rvs = np.zeros([N, N], dtype=np.bool)
+    block_rvs = np.zeros([k, k, N], dtype=np.bool)
+
+    for i in range(N):
+        remaining = np.setdiff1d(universe, question[i, :])
+        row_rvs[i][remaining-1] = True
+
+    for j in range(N):
+        remaining = np.setdiff1d(universe, question[:, j])
+        col_rvs[j][remaining-1] = True
+
+    for i in range(k):
+        for j in range(k):
+            block = question[i*k:(i+1)*k, j*k:(j+1)*k]
+            remaining = np.setdiff1d(universe, np.reshape(block, [k*k]))
+            block_rvs[i, j, remaining-1] = True
+
+    rvs = np.zeros([N, N, N], dtype=np.bool)
+    for i in range(N):
+        for j in range(N):
+            if question[i, j] == 0:
+                rvs[i, j, :] = np.logical_and(np.logical_and(row_rvs[i, :],
+                                                             col_rvs[j, :]),
+                                              block_rvs[int(i/k), int(j/k), :])
+
+    return rvs
 
 
-# test
-board, stones, question = create_random(3, 2, 0.3)
-print(board)
-print(stones)
-print(question)
-print(validate(board))
-print(validate(question))
+def print_first_question_slot(question, rvs):
+    for i in range(question.shape[0]):
+        for j in range(question.shape[1]):
+            if question[i, j] == 0:
+                print(rvs[i, j, :])
+                return
+
+
+if __name__ == "__main__":
+    # test
+    np.random.seed(13)
+    k = 16
+    e = int(k*k/3)
+    s = 1
+    board, stones, question = create_random(k, e, s)
+    print(board)
+    print(stones)
+    print(question)
+    print(validate(board))
+    print(validate(question))
+    rvs = remaining_values(question)
+    print(rvs[0:2, 0:2, :])
+    print_first_question_slot(question, rvs)
+    print("total dof: " + str(np.sum(rvs)))
+    print("average dof: " + str(np.sum(rvs)/np.sum(1 - stones)))
