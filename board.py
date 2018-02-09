@@ -160,11 +160,11 @@ def remaining_values_deg(question):
         for slot in related:
             if tuple(slot) != (i, j):
                 linked = np.where(rvs[i, j, :] & rvs[slot[0], slot[1], :])[0]
-                for m_1 in linked:
-                    neighbors = g.get((i, j, m_1 + 1))
+                for m in linked:
+                    neighbors = g.get((i, j, m))
                     neighbors = set() if neighbors is None else neighbors
                     neighbors.add(tuple(slot))
-                    g[(i, j, m_1 + 1)] = neighbors
+                    g[(i, j, m)] = neighbors
     return rvs, g
 
 
@@ -172,29 +172,81 @@ class transition:
     """repesents board state transition
     """
 
-    def __init__(self, i, j, m):
-        self.dep = list()
+    def __init__(self, i, j, m, related_links):
+        self.related_links = related_links
         self.action = (i, j, m)
+        self.affected_links = set()
+
+    def add_affected_link(self, slot):
+        self.affected_links.add(slot)
 
 
 def board_state_transition(t_stack, question, rvs, g, i, j, m):
-    t = transition(i, j, m)
-    rvs_m = rvs[:, :, m]
-    linked = g[(i, j, m)]
+    """transition the current state by taking the action (i,j,m).
 
-    t_stack.append(t)
+    Arguments:
+        t_stack {list<transition>} -- transition stack
+        question {ndarray<N,N>} -- [description]
+        rvs {ndarray<N,N,N>} -- [description]
+        g {dict<(i,j,m), set<(i,j)>>} -- [description]
+        i {int} -- [description]
+        j {int} -- [description]
+        m {int} -- [description]
+    """
+
+    # record the state and action to be taken
+    related_links = g.get((i, j, m))
+    cur_transition = transition(i, j, m, related_links)
+
+    # update dependency graph and validity.
+    if related_links is not None:
+        for slot in related_links:
+            link_from_slot = g[(slot[0], slot[1], m)]
+            if (i, j) in link_from_slot:
+                link_from_slot.remove((i, j))
+                cur_transition.add_affected_link(slot)
+                rvs[slot[0], slot[1], m] = False
+
+        g[(i, j, m)] = None
+
+    rvs[i, j, m] = False
+    question[i, j] = m + 1
+
+    t_stack.append(cur_transition)
 
 
 def board_state_restore(t_stack, question, rvs, g):
-    pass
+    """backtrack the state by reverting the action recorded in t_stack.
+
+    Arguments:
+        t_stack {list<transition>} -- [description]
+        question {ndarray<N,N>} -- [description]
+        rvs {ndarray<N,N,N>} -- [description]
+        g {dict<(i,j,m), set<(i,j)>>} -- [description]
+    """
+
+    t = t_stack.pop()
+    i, j, m = t.action
+
+    # restore the dependency graph and validity.
+    g[(i, j, m)] = t.related_links
+    if t.affected_links is not None:
+        for slot in t.affected_links:
+            link_from_slot = g[(slot[0], slot[1], m)]
+            if link_from_slot is not None:
+                link_from_slot.add((i, j))
+            rvs[slot[0], slot[1], m] = True
+
+    rvs[i, j, m] = True
+    question[i, j] = 0
 
 
 def __transit_first(t_stack, question, rvs, g):
     for i in range(question.shape[0]):
         for j in range(question.shape[1]):
             if question[i, j] == 0:
-                board_state_transition(t_stack, question, rvs, g, i, j,
-                                       rvs[i, j, rvs[i, j] == True][0])
+                m = np.where(rvs[i, j])[0][0]
+                board_state_transition(t_stack, question, rvs, g, i, j, m)
                 return
 
 
@@ -203,7 +255,7 @@ def __print_first_question_slot(question, rvs, g):
         for j in range(question.shape[1]):
             if question[i, j] == 0:
                 print(rvs[i, j, :])
-                print(g[(i, j, 1)])
+                print(g[(i, j, 0)])
                 return
 
 
@@ -220,10 +272,19 @@ if __name__ == "__main__":
     print(validate(board))
     print(validate(question))
     rvs, g = remaining_values_deg(question)
-    print(rvs[0:2, 0:2, :])
+    print(rvs[0: 2, 0: 2, :])
     __print_first_question_slot(question, rvs, g)
     print("total dof: " + str(np.sum(rvs)))
     print("average dof: " + str(np.sum(rvs)/np.sum(1 - stones)))
     t_stack = list()
+
+    old_question = np.copy(question)
+    old_rvs = np.copy(rvs)
+    old_g = g.copy()
+
     __transit_first(t_stack, question, rvs, g)
     board_state_restore(t_stack, question, rvs, g)
+
+    print(np.all(old_question == question))
+    print(np.all(old_rvs == rvs))
+    print(old_g == g)
