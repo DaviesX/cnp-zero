@@ -104,13 +104,14 @@ def validate(board):
     return True
 
 
-def remaining_values(question):
-    """Compute a remaining value voxel.
+def remaining_values_deg(question):
+    """Compute a remaining value voxel and a dependency graph.
 
     Arguments:
         question {[N, N]} -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
     Returns:
-        {[N, N, N]} -- a boolean tensor representing the remaining values for each slot.
+        {[N, N, N], g} -- a boolean tensor representing the remaining values for each slot;
+                          a dependency graph
     """
     N = question.shape[0]
     k = int(np.sqrt(N))
@@ -119,43 +120,97 @@ def remaining_values(question):
     col_rvs = np.zeros([N, N], dtype=np.bool)
     block_rvs = np.zeros([k, k, N], dtype=np.bool)
 
+    # calculate remaining values in each row.
     for i in range(N):
         remaining = np.setdiff1d(universe, question[i, :])
         row_rvs[i][remaining-1] = True
 
+    # calculate remaining values in each column.
     for j in range(N):
         remaining = np.setdiff1d(universe, question[:, j])
         col_rvs[j][remaining-1] = True
 
+    # calculate remaining values in each block.
     for i in range(k):
         for j in range(k):
             block = question[i*k:(i+1)*k, j*k:(j+1)*k]
             remaining = np.setdiff1d(universe, np.reshape(block, [k*k]))
             block_rvs[i, j, remaining-1] = True
 
+    # calculate remaining values overall.
     rvs = np.zeros([N, N, N], dtype=np.bool)
-    for i in range(N):
-        for j in range(N):
+    free_slots = np.stack(np.where(question == 0), axis=1)
+    for i, j in free_slots:
+        rvs[i, j, :] = row_rvs[i, :] & col_rvs[j, :] & block_rvs[i//k, j//k, :]
+
+    # compute dependencies.
+    g = dict()
+    deg = dict()
+    for i, j in free_slots:
+        # find related slots.
+        bi = i//k
+        bj = i//k
+        block_belongings = free_slots//k
+        related = free_slots[(free_slots[:, 0] == i) |
+                             (free_slots[:, 1] == j) |
+                             (block_belongings[:, 0] == bi) |
+                             (block_belongings[:, 1] == bj)]
+
+        # create edges and calculate degree.
+        for slot in related:
+            if tuple(slot) != (i, j):
+                linked = np.where(rvs[i, j, :] & rvs[slot[0], slot[1], :])[0]
+                for m_1 in linked:
+                    neighbors = g.get((i, j, m_1 + 1))
+                    neighbors = set() if neighbors is None else neighbors
+                    neighbors.add(tuple(slot))
+                    g[(i, j, m_1 + 1)] = neighbors
+    return rvs, g
+
+
+class transition:
+    """repesents board state transition
+    """
+
+    def __init__(self, i, j, m):
+        self.dep = list()
+        self.action = (i, j, m)
+
+
+def board_state_transition(t_stack, question, rvs, g, i, j, m):
+    t = transition(i, j, m)
+    rvs_m = rvs[:, :, m]
+    linked = g[(i, j, m)]
+
+    t_stack.append(t)
+
+
+def board_state_restore(t_stack, question, rvs, g):
+    pass
+
+
+def __transit_first(t_stack, question, rvs, g):
+    for i in range(question.shape[0]):
+        for j in range(question.shape[1]):
             if question[i, j] == 0:
-                rvs[i, j, :] = np.logical_and(np.logical_and(row_rvs[i, :],
-                                                             col_rvs[j, :]),
-                                              block_rvs[int(i/k), int(j/k), :])
-
-    return rvs
+                board_state_transition(t_stack, question, rvs, g, i, j,
+                                       rvs[i, j, rvs[i, j] == True][0])
+                return
 
 
-def print_first_question_slot(question, rvs):
+def __print_first_question_slot(question, rvs, g):
     for i in range(question.shape[0]):
         for j in range(question.shape[1]):
             if question[i, j] == 0:
                 print(rvs[i, j, :])
+                print(g[(i, j, 1)])
                 return
 
 
 if __name__ == "__main__":
     # test
     np.random.seed(13)
-    k = 16
+    k = 3
     e = int(k*k/3)
     s = 1
     board, stones, question = create_random(k, e, s)
@@ -164,8 +219,11 @@ if __name__ == "__main__":
     print(question)
     print(validate(board))
     print(validate(question))
-    rvs = remaining_values(question)
+    rvs, g = remaining_values_deg(question)
     print(rvs[0:2, 0:2, :])
-    print_first_question_slot(question, rvs)
+    __print_first_question_slot(question, rvs, g)
     print("total dof: " + str(np.sum(rvs)))
     print("average dof: " + str(np.sum(rvs)/np.sum(1 - stones)))
+    t_stack = list()
+    __transit_first(t_stack, question, rvs, g)
+    board_state_restore(t_stack, question, rvs, g)
