@@ -1,10 +1,19 @@
 import numpy as np
 import board as bd
 
-X = 0
-
 
 def __csp_mrv_deg_expansion(g, rvs, c_rvs):
+    """[summary]
+
+    Arguments:
+        g {[type]} -- [description]
+        rvs {[type]} -- [description]
+        c_rvs {[type]} -- [description]
+
+    Returns:
+        [type] -- [description]
+    """
+
     actions = list()
     for slot, s_rvs in c_rvs.items():
         if s_rvs is not None:
@@ -17,30 +26,55 @@ def __csp_mrv_deg_expansion(g, rvs, c_rvs):
     return actions
 
 
-def __csp_mrv_deg_solve(t_stack, question, rvs, c_rvs, g, k, n):
+class trial_limit:
+    """[summary]
+    """
+
+    def __init__(self, t, max_trials):
+        self.t = t
+        self.max_trials = max_trials
+
+
+def __csp_mrv_deg_solve(t_stack, question, rvs, c_rvs, g, k, n, limit):
+    """[summary]
+
+    Arguments:
+        t_stack {[type]} -- [description]
+        question {[type]} -- [description]
+        rvs {[type]} -- [description]
+        c_rvs {[type]} -- [description]
+        g {[type]} -- [description]
+        k {[type]} -- [description]
+        n {[type]} -- [description]
+        limit {[type]} -- [description]
+
+    Returns:
+        [type] -- [description]
+    """
+
     if k == n:
         assert(bd.validate(question))
-        return np.copy(question), 1
+        return np.copy(question), True
     else:
-        b = 1
         for action in __csp_mrv_deg_expansion(g, rvs, c_rvs):
             bd.board_state_transition(t_stack, question, rvs, c_rvs, g, action)
-            answer, nc = __csp_mrv_deg_solve(
-                t_stack, question, rvs, c_rvs, g, k+1, n)
+            answer, completion = __csp_mrv_deg_solve(
+                t_stack, question, rvs, c_rvs, g, k+1, n, limit)
             bd.board_state_restore(t_stack, question, rvs, c_rvs, g)
 
-            b += nc
             if answer is not None:
-                return answer, b
-    global X
-    if b > X:
-        print(question)
-        print(b)
-        X = b
-    return None, b
+                return answer, completion
+
+        if limit.t >= limit.max_trials:
+            # out of trial limit
+            return np.copy(question), False
+
+        limit.t += 1
+
+    return None, False
 
 
-def csp_mrv_deg(question, rvs, c_rvs, g):
+def csp_mrv_deg(question, rvs, c_rvs, g, max_trials=16000000):
     """Solve the cnp using csp with minimum remaining values + degree heuristics.
 
     Arguments:
@@ -53,17 +87,23 @@ def csp_mrv_deg(question, rvs, c_rvs, g):
         g {dict<(i,j,m), set<(i,j)>>} 
             -- a dependency graph.
     Returns:
-        {ndarray<N,N>} 
-            -- a solved cnp, if possible.
+        {ndarray<N,N>, boolean} 
+            -- a solved cnp, if possible;
+            -- indicate whether the answer is complete.
     """
-    return __csp_mrv_deg_solve(list(), question, rvs, c_rvs, g, 0, np.where(question == 0)[0].shape[0])
+    limit = trial_limit(1, max_trials)
+    ans, c = __csp_mrv_deg_solve(list(), question, rvs, c_rvs, g,
+                                 0,
+                                 np.where(question == 0)[0].shape[0],
+                                 limit)
+    return ans, c, limit.t
 
 
 if __name__ == "__main__":
     # test
     np.random.seed(13)
     k = 3
-    e = 4
+    e = 3.99
     s = 1
     board, stones, question = bd.create_random(k, e, s)
     print(board)
@@ -75,9 +115,22 @@ if __name__ == "__main__":
     print(rvs[0: 2, 0: 2, :])
     print("total dof: " + str(np.sum(rvs)))
     print("average dof: " + str(np.sum(rvs)/np.sum(1 - stones)))
-    t_stack = list()
 
-    answer, nc = csp_mrv_deg(question, rvs, c_rvs, g)
+    old_question = np.copy(question)
+    old_rvs = np.copy(rvs)
+    old_g = g.copy()
+    old_crvs = c_rvs.copy()
+
+    answer, c, t = csp_mrv_deg(question, rvs, c_rvs, g)
+
+    print("sanity check: ")
+    print(np.all(old_question == question))
+    print(np.all(old_rvs == rvs))
+    print(old_g == g)
+    print(old_crvs == c_rvs)
+
+    print("answer")
     print(answer)
+    print("completion=" + str(c))
+    print("number of trials=" + str(t))
     print(np.all(board == answer))
-    print(nc)
