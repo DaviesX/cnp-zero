@@ -8,11 +8,15 @@ def create_random(k, e_block, e_dev):
         and a boolean matrix of same size indicating the fillable positions.
 
     Arguments:
-        k {int} -- width of each block.
-        e_block {float} -- the expected number of removal for each block.
-        e_dev {float} -- deviation from the removal expectation.
+        k {int} 
+            -- width of each block.
+        e_block {float} 
+            -- the expected number of removal for each block.
+        e_dev {float} 
+            -- deviation from the removal expectation.
     Returns:
-        {[k*k, k*k], [k*k, k*k], [k*k, k*k]} -- answer, free slots, question.
+        {[k*k, k*k], [k*k, k*k], [k*k, k*k]} 
+            -- answer, free slots, question.
     """
     if k < 2:
         raise Exception("Block width k < 2.")
@@ -83,9 +87,11 @@ def validate(board):
     """Test if the board a valid answer
 
     Arguments:
-        board {[N, N]} -- a [k*k, k*k] shaped integer matrix.
+        board {[N, N]} 
+            -- a [k*k, k*k] shaped integer matrix.
     Returns:
-        {bool} -- whether the solution is valid.
+        {bool} 
+            -- whether the solution is valid.
     """
     k = int(np.sqrt(board.shape[0]))
     for row in board:
@@ -108,10 +114,13 @@ def remaining_values_deg(question):
     """Compute a remaining value voxel and a dependency graph.
 
     Arguments:
-        question {[N, N]} -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
+        question {[N,N]} 
+            -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
     Returns:
-        {[N, N, N], g} -- a boolean tensor representing the remaining values for each slot;
-                          a dependency graph
+        {ndarray<N,N,N>, dict<(i,j),int>, dict<(i,j,m),set<i,j>>} 
+                -- a boolean tensor representing the remaining values for each slot;
+                -- a dictionary of remaining values (compact representation of the first);
+                -- a dependency graph.
     """
     N = question.shape[0]
     k = int(np.sqrt(N))
@@ -143,20 +152,24 @@ def remaining_values_deg(question):
     for i, j in free_slots:
         rvs[i, j, :] = row_rvs[i, :] & col_rvs[j, :] & block_rvs[i//k, j//k, :]
 
+    # remaining value counters
+    c_rvs = dict()
+    for i, j in free_slots:
+        c_rvs[(i, j)] = set(np.where(rvs[i, j, :])[0])
+
     # compute dependencies.
     g = dict()
-    deg = dict()
     for i, j in free_slots:
         # find related slots.
         bi = i//k
-        bj = i//k
+        bj = j//k
         block_belongings = free_slots//k
         related = free_slots[(free_slots[:, 0] == i) |
                              (free_slots[:, 1] == j) |
-                             (block_belongings[:, 0] == bi) |
-                             (block_belongings[:, 1] == bj)]
+                             ((block_belongings[:, 0] == bi) &
+                              (block_belongings[:, 1] == bj))]
 
-        # create edges and calculate degree.
+        # create edges.
         for slot in related:
             if tuple(slot) != (i, j):
                 linked = np.where(rvs[i, j, :] & rvs[slot[0], slot[1], :])[0]
@@ -165,88 +178,102 @@ def remaining_values_deg(question):
                     neighbors = set() if neighbors is None else neighbors
                     neighbors.add(tuple(slot))
                     g[(i, j, m)] = neighbors
-    return rvs, g
+
+    return rvs, c_rvs, g
 
 
 class transition:
     """repesents board state transition
     """
 
-    def __init__(self, i, j, m, related_links):
-        self.related_links = related_links
+    def __init__(self, i, j, m, c_rvs):
         self.action = (i, j, m)
-        self.affected_links = set()
+        self.c_rvs = c_rvs
+        self.rvs_removed = list()
 
-    def add_affected_link(self, slot):
-        self.affected_links.add(slot)
+    def add_removed_rvs(self, slot):
+        self.rvs_removed.append(slot)
 
 
-def board_state_transition(t_stack, question, rvs, g, i, j, m):
+def board_state_transition(t_stack, question, rvs, c_rvs, g, action):
     """transition the current state by taking the action (i,j,m).
 
     Arguments:
-        t_stack {list<transition>} -- transition stack
-        question {ndarray<N,N>} -- [description]
-        rvs {ndarray<N,N,N>} -- [description]
-        g {dict<(i,j,m), set<(i,j)>>} -- [description]
-        i {int} -- [description]
-        j {int} -- [description]
-        m {int} -- [description]
+        t_stack {list<transition>} 
+            -- transition stack.
+        question {ndarray<N,N>} 
+            -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
+        rvs {ndarray<N,N,N>} 
+            -- a boolean tensor representing the remaining values for each slot.
+        c_rvs {dict<(i,j),int>}
+            -- a dictionary of remaining value counters
+        g {dict<(i,j,m), set<(i,j)>>} 
+            -- a dependency graph.
+        action {<(i,j,m)>}
+            -- transitioning to the ith column, jth row and mth value, (zero offset)
     """
+    i, j, m = action
 
     # record the state and action to be taken
     related_links = g.get((i, j, m))
-    cur_transition = transition(i, j, m, related_links)
+    t = transition(i, j, m, c_rvs[(i, j)])
 
-    # update dependency graph and validity.
+    # update remain values.
     if related_links is not None:
-        for slot in related_links:
-            link_from_slot = g[(slot[0], slot[1], m)]
-            if (i, j) in link_from_slot:
-                link_from_slot.remove((i, j))
-                cur_transition.add_affected_link(slot)
-                rvs[slot[0], slot[1], m] = False
+        for related_link in related_links:
+            rvs_at_link = c_rvs[related_link]
+            if rvs_at_link is not None and m in rvs_at_link:
+                t.add_removed_rvs(related_link)
+                rvs_at_link.remove(m)
+                rvs[related_link[0], related_link[1], m] = False
 
-        g[(i, j, m)] = None
+    c_rvs[(i, j)] = None
+    rvs[i, j, :] = False
 
-    rvs[i, j, m] = False
     question[i, j] = m + 1
 
-    t_stack.append(cur_transition)
+    t_stack.append(t)
 
 
-def board_state_restore(t_stack, question, rvs, g):
+def board_state_restore(t_stack, question, rvs, c_rvs, g):
     """backtrack the state by reverting the action recorded in t_stack.
 
     Arguments:
-        t_stack {list<transition>} -- [description]
-        question {ndarray<N,N>} -- [description]
-        rvs {ndarray<N,N,N>} -- [description]
-        g {dict<(i,j,m), set<(i,j)>>} -- [description]
+        t_stack {list<transition>} 
+            -- transition stack.
+        question {ndarray<N,N>} 
+            -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
+        rvs {ndarray<N,N,N>} 
+            -- a boolean tensor representing the remaining values for each slot.
+        c_rvs {dict<(i,j),int>}
+            -- a dictionary of remaining value counters
+        g {dict<(i,j,m), set<(i,j)>>} 
+            -- a dependency graph.
     """
 
     t = t_stack.pop()
     i, j, m = t.action
 
-    # restore the dependency graph and validity.
-    g[(i, j, m)] = t.related_links
-    if t.affected_links is not None:
-        for slot in t.affected_links:
-            link_from_slot = g[(slot[0], slot[1], m)]
-            if link_from_slot is not None:
-                link_from_slot.add((i, j))
-            rvs[slot[0], slot[1], m] = True
-
-    rvs[i, j, m] = True
     question[i, j] = 0
 
+    # restore previous remaining value states.
+    c_rvs[(i, j)] = t.c_rvs
 
-def __transit_first(t_stack, question, rvs, g):
+    for cur_rv in t.c_rvs:
+        rvs[i, j, cur_rv] = True
+
+    for rv_removed in t.rvs_removed:
+        c_rvs[rv_removed].add(m)
+        rvs[rv_removed[0], rv_removed[1], m] = True
+
+
+def __transit_first(t_stack, question, rvs, c_rvs, g):
     for i in range(question.shape[0]):
         for j in range(question.shape[1]):
             if question[i, j] == 0:
                 m = np.where(rvs[i, j])[0][0]
-                board_state_transition(t_stack, question, rvs, g, i, j, m)
+                board_state_transition(
+                    t_stack, question, rvs, c_rvs, g, (i, j, m))
                 return
 
 
@@ -271,7 +298,7 @@ if __name__ == "__main__":
     print(question)
     print(validate(board))
     print(validate(question))
-    rvs, g = remaining_values_deg(question)
+    rvs, c_rvs, g = remaining_values_deg(question)
     print(rvs[0: 2, 0: 2, :])
     __print_first_question_slot(question, rvs, g)
     print("total dof: " + str(np.sum(rvs)))
@@ -281,10 +308,12 @@ if __name__ == "__main__":
     old_question = np.copy(question)
     old_rvs = np.copy(rvs)
     old_g = g.copy()
+    old_crvs = c_rvs.copy()
 
-    __transit_first(t_stack, question, rvs, g)
-    board_state_restore(t_stack, question, rvs, g)
+    __transit_first(t_stack, question, rvs, c_rvs, g)
+    board_state_restore(t_stack, question, rvs, c_rvs, g)
 
     print(np.all(old_question == question))
     print(np.all(old_rvs == rvs))
     print(old_g == g)
+    print(old_crvs == c_rvs)
