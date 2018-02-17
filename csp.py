@@ -33,6 +33,8 @@ class trial_limit:
     def __init__(self, t, max_trials):
         self.t = t
         self.max_trials = max_trials
+        self.best_ans = None
+        self.best_k = 0
 
 
 def __csp_mrv_deg_solve(t_stack, question, rvs, c_rvs, g, k, n, limit):
@@ -51,30 +53,35 @@ def __csp_mrv_deg_solve(t_stack, question, rvs, c_rvs, g, k, n, limit):
     Returns:
         [type] -- [description]
     """
+    if k > limit.best_k:
+        # record best answer so far.
+        limit.best_ans = np.copy(question)
+        limit.best_k = k
 
     if k == n:
         assert(bd.validate(question))
-        return np.copy(question), True
+        limit.best_ans = np.copy(question)
+        limit.best_k = k
+        return True
     else:
         for action in __csp_mrv_deg_expansion(g, rvs, c_rvs):
             bd.board_state_transition(t_stack, question, rvs, c_rvs, g, action)
-            answer, completion = __csp_mrv_deg_solve(
+            terminate = __csp_mrv_deg_solve(
                 t_stack, question, rvs, c_rvs, g, k+1, n, limit)
             bd.board_state_restore(t_stack, question, rvs, c_rvs, g)
 
-            if answer is not None:
-                return answer, completion
+            if terminate:
+                return True
 
-        if limit.t >= limit.max_trials:
-            # out of trial limit
-            return np.copy(question), False
+            if limit.t >= limit.max_trials:
+                # out of trial limit
+                return True
+            limit.t += 1
 
-        limit.t += 1
-
-    return None, False
+    return False
 
 
-def csp_mrv_deg(question, rvs, c_rvs, g, max_trials=16000000):
+def csp_mrv_deg(question, rvs, c_rvs, g, max_trials=1000):
     """Solve the cnp using csp with minimum remaining values + degree heuristics.
 
     Arguments:
@@ -92,18 +99,18 @@ def csp_mrv_deg(question, rvs, c_rvs, g, max_trials=16000000):
             -- indicate whether the answer is complete.
     """
     limit = trial_limit(1, max_trials)
-    ans, c = __csp_mrv_deg_solve(list(), question, rvs, c_rvs, g,
-                                 0,
-                                 np.where(question == 0)[0].shape[0],
-                                 limit)
-    return ans, c, limit.t
+    __csp_mrv_deg_solve(list(), question, rvs, c_rvs, g,
+                        0,
+                        np.where(question == 0)[0].shape[0],
+                        limit)
+    return limit.best_ans, limit.best_k, limit.t
 
 
 if __name__ == "__main__":
     # test
     np.random.seed(13)
     k = 3
-    e = 3.99
+    e = 4
     s = 1
     board, stones, question = bd.create_random(k, e, s)
     print(board)
@@ -121,7 +128,7 @@ if __name__ == "__main__":
     old_g = g.copy()
     old_crvs = c_rvs.copy()
 
-    answer, c, t = csp_mrv_deg(question, rvs, c_rvs, g)
+    answer, k, t = csp_mrv_deg(question, rvs, c_rvs, g)
 
     print("sanity check: ")
     print(np.all(old_question == question))
@@ -131,6 +138,6 @@ if __name__ == "__main__":
 
     print("answer")
     print(answer)
-    print("completion=" + str(c))
+    print("completion=" + str(k) + "/" + str(np.sum(question == 0)))
     print("number of trials=" + str(t))
     print(np.all(board == answer))
