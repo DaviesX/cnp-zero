@@ -6,14 +6,19 @@ class theta:
     """MCTS parameters
     """
 
-    def __init__(self, c=1.41, N=1):
+    def __init__(self, b=1.0, c=1.41, N=1):
         """[summary]
 
         Keyword Arguments:
-            c {[type]} -- [description] (default: {1})
-            N {[type]} -- [description] (default: {1})
+            b {float}
+                -- RAVE to truth transition factor. (default: {1.0})
+            c {float} 
+                -- Exploration factor (default: {1.41})
+            N {int} 
+                -- Number of rollouts per iteration (default: {1})
         """
         self.c = c
+        self.b = b
         self.N = N
 
 
@@ -23,62 +28,67 @@ class node:
 
     def __init__(self, action):
         self.action = action
-        self.score = 0
-        self.N = 0
+        self.nh = 0
+        self.nw = 0
         self.n = 0
         self.w = 0
         self.children = list()
         self.child_lookup = dict()
 
-    def __lt__(self, rhs):
-        return self.score < rhs.score
 
-    def add_child(self, c):
-        """Add a child node.
+def __mcts_score(node, b, c, t):
+    """[summary]
 
-        Arguments:
-            c {node}
-                -- child node
-        """
-        self.children.append(c)
-        self.child_lookup[c.action] = c
+    Arguments:
+        node {[type]} -- [description]
+        b {[type]} -- [description]
+        c {[type]} -- [description]
+        t {[type]} -- [description]
 
-    def max_child(self):
-        """Return a child that has max score.
-
-        Returns:
-            node -- child node that has max score.
-        """
-        return max(self.children)
-
-    def update_child(self, c):
-        """update the child considering its having a new score.
-
-        Arguments:
-            c {node} -- the child to be updated.
-        """
-        pass
+    Returns:
+        [type] -- [description]
+    """
+    beta = node.nh/(node.n + node.nh + 4*b*b*node.n*node.nh)
+    return (1 - beta)*node.w/node.n + beta*node.wh/node.nh + c*m.sqrt(m.log(t)/node.n)
 
 
-def __mcts_nav2mpm(node, board, t_stack, rvs, c_rvs, g):
+def __mcts_nav2mpm(node, b, c, t, board, t_stack, rvs, c_rvs, g):
     """Navigate to most promising move.
 
     Arguments:
         node {[type]} -- [description]
+        b {[type]} -- [description]
+        c {[type]} -- [description]
+        t {[type]} -- [description]
         board {[type]} -- [description]
         t_stack {[type]} -- [description]
         rvs {[type]} -- [description]
         c_rvs {[type]} -- [description]
         g {[type]} -- [description]
+
+    Returns:
+        candid {node} 
+            -- candidate node
+        path {list<node>}
+            -- from candidate node to root.
     """
+    if t is 0:
+        return node, []
+
     if not node.children:
         return node, [node]
     else:
-        greatest_child = node.max_child()
+        greatest_child = node.children[0]
+        grestest_score = __mcts_score(node.children[0], b, c, t)
+        for i in range(1, len(node.children)):
+            score = __mcts_score(node.children[i], b, c, t)
+            if score > grestest_score:
+                greatest_child = node.children[i]
+                grestest_score = score
         bd.board_state_transition(
             t_stack, board, rvs, c_rvs, g, greatest_child.action)
         candid, path = __mcts_nav2mpm(
-            greatest_child, t_stack, board, rvs, c_rvs, g)
+            greatest_child, b, c, t, t_stack, board, rvs, c_rvs, g)
         path.append(node)
         return candid, path
 
@@ -88,10 +98,11 @@ def __mcts_expand(candid, c_rvs):
 
     Arguments:
         candid {node} -- [description]
-        c_rvs {dict<slot, list<int>} -- [description]
+        c_rvs {dict<(i,j),int>} 
+            -- a dictionary of remaining value counters
 
     Returns:
-        list<node> 
+        candids {list<node>}
             -- [description]
     """
     candids = list()
@@ -108,7 +119,6 @@ def __mcts_rollout(candids, board, t_stack, rvs, c_rvs, g, N, f):
     """[summary]
 
     Arguments:
-        candids {[type]} -- [description]
         board {[type]} -- [description]
         t_stack {[type]} -- [description]
         rvs {[type]} -- [description]
@@ -116,40 +126,61 @@ def __mcts_rollout(candids, board, t_stack, rvs, c_rvs, g, N, f):
         g {[type]} -- [description]
         N {[type]} -- [description]
         f {[type]} -- [description]
+
+    Returns:
+        wins {list<int>}
+            -- number of wins for each candidate.
+        nt {int}
+            -- number of rollout performed after the parent move.
     """
     wins = list()
     for candid in candids:
         bd.board_state_transition(t_stack, board, rvs, c_rvs, g, candid.action)
+        f.init(board, t_stack, rvs, c_rvs,)
         w = 0
         for _ in range(N):
             w += f.sample(board, t_stack, rvs, c_rvs, g)
         wins.append(w)
-    return wins
+        bd.board_state_restore(t_stack, board, rvs, c_rvs, g)
+
+    return wins, N*len(candids)
 
 
-def __mcts_backprop(candids, wins, path, c, N, board, t_stack, rvs, c_rvs, g):
+def __mcts_backprop(candids, N, wins, nt, wt, path, board, t_stack, rvs, c_rvs, g):
     """Back propagation.
 
     Arguments:
         candids {[type]} -- [description]
-        wins {[type]} -- [description]
-        path {[type]} -- [description]
-        c {[type]} -- [description]
         N {[type]} -- [description]
+        wins {[type]} -- [description]
+        nt {int}
+            -- total number of rollouts after the parent move.
+        wt {int}
+            -- total number of wins after the parent move.
+
+        path {[type]} -- [description]
         board {[type]} -- [description]
         t_stack {[type]} -- [description]
         rvs {[type]} -- [description]
         c_rvs {[type]} -- [description]
         g {[type]} -- [description]
     """
+    # update the newly expanded level.
+    for i in range(len(candids)):
+        candids[i].n += N
+        candids[i].w += wins[i]
+
+    # back prop.
     for node in path:
-        for candid, win in (candids, wins):
-            c = node.child_lookup.get(candid)
+        node.n += nt
+        node.w += wt
+        for i in range(len(candids)):
+            candid = candids[i]
+            win = wins[i]
+            c = node.child_lookup.get(candid.action)
             if c is not None:
-                c.N += N
-                c.w += win
-                c.score = c.w/c.N + c*m.sqrt(m.log())
-                node.update_child(c)
+                c.nh += N
+                c.wh += win
         bd.board_state_restore(t_stack, board, rvs, c_rvs, g)
 
 
@@ -169,16 +200,24 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
             -- policy-value lambda function.
         the {theta}
             -- MCTS parameters.
-        max_trials {}
+        max_trials {int}
+            -- number of MCTS runs.
     """
     root = node(None)
     t_stack = list()
-    for i in range(max_trials):
-        mpn, path = __mcts_nav2mpm(root, board, t_stack, rvs, c_rvs, g)
+    t = 0
+    for _ in range(1, max_trials + 1):
+        mpn, path = __mcts_nav2mpm(
+            root, the.b, the.c, t, board, t_stack, rvs, c_rvs, g)
         # Apply the moves.
         candids = __mcts_expand(mpn, c_rvs)
-        wins = __mcts_rollout(candids, board, t_stack, rvs, c_rvs, g, the.N, f)
-        __mcts_backprop(candids, wins, path,
-                        the.c, the.N,
+        wins, nt = __mcts_rollout(
+            candids, board, t_stack, rvs, c_rvs, g, the.N, f)
+        t += nt
+        __mcts_backprop(candids, the.N, wins, nt, sum(wins), path,
                         board, t_stack, rvs, c_rvs, g)
+    pass
+
+
+if __name__ == "__main__":
     pass
