@@ -93,6 +93,10 @@ def csp_mrv_deg(question, rvs, c_rvs, g, max_trials=1000):
             -- a dictionary of remaining value counters
         g {dict<(i,j,m), set<(i,j)>>} 
             -- a dependency graph.
+
+    Keyword Arguments:
+        max_trials {int} -- maximum number of trials before giving up (default: {1000})
+
     Returns:
         {ndarray<N,N>, boolean} 
             -- a solved cnp, if possible;
