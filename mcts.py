@@ -1,5 +1,7 @@
 import math as m
+import numpy as np
 import board as bd
+import policy
 
 
 class theta:
@@ -34,6 +36,9 @@ class node:
         self.w = 0
         self.children = list()
         self.child_lookup = dict()
+
+    def __str__(self):
+        return "node: {" + self.action + ", " + self.w/self.w + ", " + self.nw/self.nh + "}"
 
 
 def __mcts_score(node, b, c, t):
@@ -206,6 +211,11 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
             -- MCTS parameters.
         max_trials {int}
             -- number of MCTS runs.
+    Returns:
+        wins {list<int>}
+            -- number of wins for each candidate.
+        nt {int}
+            -- number of rollout performed after the parent move.
     """
     td = len(c_rvs)
 
@@ -221,8 +231,39 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
         t += nt
         __mcts_backprop(candids, the.N, wins, nt, sum(wins), path,
                         board, t_stack, rvs, c_rvs, g)
-    pass
+
+    # return the most simulated child.
+    grestest_n = root.children[0].n
+    best_child = root.children[0]
+    for i in range(1, len(root.children)):
+        if root.children[i].n > grestest_n:
+            best_child = root.children[i]
+            grestest_n = root.children[i].n
+
+    return best_child
 
 
 if __name__ == "__main__":
-    pass
+    # test
+    np.random.seed(13)
+    k = 3
+    e = 4
+    s = 1
+    board, stones, question = bd.create_random(k, e, s)
+    print(board)
+    print(stones)
+    print(question)
+    print(bd.validate(board))
+    print(bd.validate(question))
+    rvs, c_rvs, g = bd.remaining_values_deg(question)
+    print(rvs[0: 2, 0: 2, :])
+    print("total dof: " + str(np.sum(rvs)))
+    print("average dof: " + str(np.sum(rvs)/np.sum(1 - stones)))
+
+    old_question = np.copy(question)
+    old_rvs = np.copy(rvs)
+    old_g = g.copy()
+    old_crvs = c_rvs.copy()
+
+    best_child = mcts_heavy(question, rvs, c_rvs, g, policy.mrv.mrv(), theta())
+    print(best_child)
