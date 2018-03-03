@@ -151,7 +151,7 @@ def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
             -- number of rollout performed after the parent move.
     """
     wins = [0 for _ in range(len(candids))]
-    sln = None
+    sln = list()
 
     for candid in candids:
         bd.board_state_transition(t_stack, board, rvs, c_rvs, g, candid.action)
@@ -160,7 +160,7 @@ def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
         for _ in range(N):
             sw, ssln = f.sample(d + 1, td, board, t_stack, rvs, c_rvs, g)
             w += sw
-            if ssln is not None:
+            if len(ssln) + 1 > len(sln):
                 ssln.reverse()
                 sln = [node(action) for action in ssln] + [candid]
         wins.append(w)
@@ -256,7 +256,7 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
     """
     td = len(c_rvs)
 
-    sln_path = None
+    sln_path = list()
     root = node(None)
     t_stack = list()
     t = 0
@@ -274,20 +274,14 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
         print(path)
         print(__best_child_of(root))
 
-        if sln is not None:
+        if len(sln) + len(path) > len(sln_path):
             sln_path = sln + path
-            break
+            if len(sln_path) - 1 is td:
+                # solved.
+                break
+        print(gr.win_metric(len(sln_path) - 1, td))
 
     answer = np.copy(board)
-
-    if sln_path is None:
-        # construct the best solution we've found so far.
-        sln_path = [root]
-        path_node = root
-        while path_node.children:
-            best_child = __best_child_of(path_node)
-            sln_path.append(best_child)
-            path_node = best_child
 
     for path_node in sln_path:
         if path_node.action is not None:

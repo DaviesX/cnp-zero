@@ -65,7 +65,7 @@ class mrv(ifpolicy.if_policy):
                 # end of the game.
                 for _ in range(len(sln_path)):
                     bd.board_state_restore(t_stack, board, rvs, c_rvs, g)
-                return (gr.win_metric(d + len(sln_path), td), None) if d + len(sln_path) < td else (m.inf, sln_path)
+                return (gr.win_metric(d + len(sln_path), td), sln_path) if d + len(sln_path) < td else (m.inf, sln_path)
             else:
                 # create a exponential distribution over the actions.
                 rv = stats.expon.rvs(loc=0, scale=len(actions)/10)
