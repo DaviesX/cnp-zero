@@ -283,7 +283,7 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
         for path_node in sln_path:
             if path_node.action is not None:
                 i, j, m = path_node.action
-                answer[i, j] = m
+                answer[i, j] = m + 1
         return answer, td, t
     else:
         return None
