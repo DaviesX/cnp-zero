@@ -46,6 +46,9 @@ class if_policy:
                 -- a dependency graph.
 
         Returns:
-            float -- 1 if won, or else 0.
+            win {float} 
+                -- 1 if won, or else 0.
+            solution {list<action>}
+                -- the path if a solution is found, or else None.
         """
-        return 0
+        return 0, None

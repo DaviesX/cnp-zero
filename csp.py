@@ -119,8 +119,9 @@ if __name__ == "__main__":
 
     print("answer")
     print(answer)
-    t = np.sum(question == 0)
+    print(bd.validate(answer))
+    n = np.sum(question == 0)
     print("completion=" + str(k) + "/" +
-          str(t) + "->" + str(gr.win_metric(k, t)))
+          str(n) + "->" + str(gr.win_metric(k, n)))
     print("number of trials=" + str(t))
     print(np.all(board == answer))

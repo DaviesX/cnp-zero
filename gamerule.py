@@ -10,4 +10,4 @@ def win_metric(D, T):
         float 
             -- amount of win.
     """
-    return (D/T)**50
+    return (D/T)**10
