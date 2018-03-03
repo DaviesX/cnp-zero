@@ -120,12 +120,11 @@ def __mcts_expand(candid, c_rvs):
             -- [description]
     """
     candids = list()
-    for slot, s_rvs in c_rvs.items():
-        if s_rvs is not None:
-            for s_rv in s_rvs:
-                child = node((slot[0], slot[1], s_rv))
-                candid.add_child(child)
-                candids.append(child)
+
+    for action in bd.board_state_expansion(g, rvs, c_rvs):
+        child = node(action)
+        candid.add_child(child)
+        candids.append(child)
     return candids
 
 
@@ -218,9 +217,10 @@ def __best_child_of(node):
 
     Returns:
         best_child {node} 
-            -- the most simulated child.
+            -- the most simulated child if there is one, or else, None.
     """
-
+    if not node.children:
+        return None
     grestest_n = node.children[0].n
     best_child = node.children[0]
     for i in range(1, len(node.children)):
@@ -278,22 +278,29 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
             sln_path = sln + path
             break
 
-    if sln_path is not None:
-        answer = np.copy(board)
-        for path_node in sln_path:
-            if path_node.action is not None:
-                i, j, m = path_node.action
-                answer[i, j] = m + 1
-        return answer, td, t
-    else:
-        return None
+    answer = np.copy(board)
+
+    if sln_path is None:
+        # construct the best solution we've found so far.
+        sln_path = [root]
+        path_node = root
+        while path_node.children:
+            best_child = __best_child_of(path_node)
+            sln_path.append(best_child)
+            path_node = best_child
+
+    for path_node in sln_path:
+        if path_node.action is not None:
+            i, j, m = path_node.action
+            answer[i, j] = m + 1
+    return answer, len(sln_path)-1, t
 
 
 if __name__ == "__main__":
     # test
     np.random.seed(13)
-    k = 3
-    e = 4
+    k = 4
+    e = 3
     s = 1
     board, stones, question = bd.create_random(k, e, s)
     print(board)
@@ -324,7 +331,7 @@ if __name__ == "__main__":
     print(answer)
     print(bd.validate(answer))
     n = np.sum(question == 0)
-    print("completion=" + str(n) + "/" +
+    print("completion=" + str(k) + "/" +
           str(n) + "->" + str(gr.win_metric(k, n)))
     print("number of trials=" + str(t))
     print(np.all(board == answer))
