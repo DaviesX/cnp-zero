@@ -1,29 +1,6 @@
 import numpy as np
 import board as bd
-
-
-def __csp_mrv_deg_expansion(g, rvs, c_rvs):
-    """[summary]
-
-    Arguments:
-        g {[type]} -- [description]
-        rvs {[type]} -- [description]
-        c_rvs {[type]} -- [description]
-
-    Returns:
-        [type] -- [description]
-    """
-
-    actions = list()
-    for slot, s_rvs in c_rvs.items():
-        if s_rvs is not None:
-            for s_rv in s_rvs:
-                actions.append((slot[0], slot[1], s_rv))
-    actions.sort(key=lambda action: len(g[action]) if g.get(
-        action) is not None else 0, reverse=True)
-    actions.sort(key=lambda action: len(
-        c_rvs[(action[0], action[1])]), reverse=False)
-    return actions
+import gamerule as gr
 
 
 class trial_limit:
@@ -64,7 +41,7 @@ def __csp_mrv_deg_solve(t_stack, question, rvs, c_rvs, g, k, n, limit):
         limit.best_k = k
         return True
     else:
-        for action in __csp_mrv_deg_expansion(g, rvs, c_rvs):
+        for action in bd.board_state_expansion(g, rvs, c_rvs):
             bd.board_state_transition(t_stack, question, rvs, c_rvs, g, action)
             terminate = __csp_mrv_deg_solve(
                 t_stack, question, rvs, c_rvs, g, k+1, n, limit)
@@ -142,6 +119,8 @@ if __name__ == "__main__":
 
     print("answer")
     print(answer)
-    print("completion=" + str(k) + "/" + str(np.sum(question == 0)))
+    t = np.sum(question == 0)
+    print("completion=" + str(k) + "/" +
+          str(t) + "->" + str(gr.win_metric(k, t)))
     print("number of trials=" + str(t))
     print(np.all(board == answer))

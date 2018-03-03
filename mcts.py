@@ -1,7 +1,7 @@
 import math as m
 import numpy as np
 import board as bd
-import policy
+from policy import mrv
 
 
 class theta:
@@ -31,14 +31,18 @@ class node:
     def __init__(self, action):
         self.action = action
         self.nh = 0
-        self.nw = 0
+        self.wh = 0
         self.n = 0
         self.w = 0
         self.children = list()
         self.child_lookup = dict()
 
+    def add_child(self, c):
+        self.children.append(c)
+        self.child_lookup[c.action] = c
+
     def __str__(self):
-        return "node: {" + self.action + ", " + self.w/self.w + ", " + self.nw/self.nh + "}"
+        return "node: {" + self.action + ", " + self.w/self.w + ", " + self.wh/self.nh + "}"
 
 
 def __mcts_score(node, b, c, t):
@@ -54,7 +58,9 @@ def __mcts_score(node, b, c, t):
         [type] -- [description]
     """
     beta = node.nh/(node.n + node.nh + 4*b*b*node.n*node.nh)
-    return (1 - beta)*node.w/node.n + beta*node.wh/node.nh + c*m.sqrt(m.log(t)/node.n)
+    return (1 - beta)*node.w/node.n + \
+        (beta*node.wh/node.nh if node.nh > 0 else 0) + \
+        (c*m.sqrt(m.log(t)/node.n) if node.n > 0 else 0)
 
 
 def __mcts_nav2mpm(node, b, c, t, board, t_stack, rvs, c_rvs, g):
@@ -145,7 +151,7 @@ def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
     wins = list()
     for candid in candids:
         bd.board_state_transition(t_stack, board, rvs, c_rvs, g, candid.action)
-        f.init(board, t_stack, rvs, c_rvs,)
+        f.init(board, t_stack, rvs, c_rvs, g)
         w = 0
         for _ in range(N):
             w += f.sample(d + 1, td, board, t_stack, rvs, c_rvs, g)
@@ -265,5 +271,5 @@ if __name__ == "__main__":
     old_g = g.copy()
     old_crvs = c_rvs.copy()
 
-    best_child = mcts_heavy(question, rvs, c_rvs, g, policy.mrv.mrv(), theta())
+    best_child = mcts_heavy(question, rvs, c_rvs, g, mrv.mrv(), theta())
     print(best_child)

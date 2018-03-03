@@ -1,35 +1,8 @@
-import ifpolicy
+import policy.ifpolicy as ifpolicy
 import gamerule as gr
 import board as bd
 import math as m
 import scipy.stats as stats
-
-
-def __node_expansion(g, rvs, c_rvs):
-    """[summary]
-
-    Arguments:
-        g {dict<(i,j,m), set<(i,j)>>} 
-            -- a dependency graph.
-        rvs {ndarray<N,N,N>} 
-            -- a boolean tensor representing the remaining values for each slot.
-        c_rvs {dict<(i,j),int>}
-            -- a dictionary of remaining value counters
-
-    Returns:
-        {list<i,j,m>} -- Available actions.
-    """
-
-    actions = list()
-    for slot, s_rvs in c_rvs.items():
-        if s_rvs is not None:
-            for s_rv in s_rvs:
-                actions.append((slot[0], slot[1], s_rv))
-    actions.sort(key=lambda action: len(g[action]) if g.get(
-        action) is not None else 0, reverse=True)
-    actions.sort(key=lambda action: len(
-        c_rvs[(action[0], action[1])]), reverse=False)
-    return actions
 
 
 class mrv(ifpolicy.if_policy):
@@ -87,7 +60,7 @@ class mrv(ifpolicy.if_policy):
         """
         l = 0
         while True:
-            actions = __node_expansion(g, rvs, c_rvs)
+            actions = bd.board_state_expansion(g, rvs, c_rvs)
             if not actions:
                 # end of the game.
                 for _ in range(l):
@@ -95,8 +68,7 @@ class mrv(ifpolicy.if_policy):
                 return gr.win_metric(d + l, td) if d + l < td else m.inf
             else:
                 # create a exponential distribution over the actions.
-                rv = stats.expon.rvs(loc=0, scale=len(actions))[0]
-                selected_action = actions[int(rv*len(actions))]
-                bd.board_state_transition(
-                    t_stack, board, rvs, c_rvs, g, selected_action)
+                rv = stats.expon.rvs(loc=0, scale=len(actions))
+                bd.board_state_transition(t_stack, board, rvs, c_rvs, g,
+                                          actions[int(rv) if rv < len(actions) else len(actions) - 1])
                 l += 1

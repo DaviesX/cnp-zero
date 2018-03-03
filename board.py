@@ -267,6 +267,34 @@ def board_state_restore(t_stack, question, rvs, c_rvs, g):
         rvs[rv_removed[0], rv_removed[1], m] = True
 
 
+def board_state_expansion(g, rvs, c_rvs):
+    """Expand the actions that can be taken from current board states.
+       Actions are sorted based on MRV + DEG.
+
+    Arguments:
+        g {dict<(i,j,m), set<(i,j)>>} 
+            -- a dependency graph.
+        rvs {ndarray<N,N,N>} 
+            -- a boolean tensor representing the remaining values for each slot.
+        c_rvs {dict<(i,j),int>}
+            -- a dictionary of remaining value counters
+
+    Returns:
+        {list<i,j,m>} -- Available actions.
+    """
+
+    actions = list()
+    for slot, s_rvs in c_rvs.items():
+        if s_rvs is not None:
+            for s_rv in s_rvs:
+                actions.append((slot[0], slot[1], s_rv))
+    actions.sort(key=lambda action: len(g[action]) if g.get(
+        action) is not None else 0, reverse=True)
+    actions.sort(key=lambda action: len(
+        c_rvs[(action[0], action[1])]), reverse=False)
+    return actions
+
+
 def __transit_first(t_stack, question, rvs, c_rvs, g):
     for i in range(question.shape[0]):
         for j in range(question.shape[1]):
