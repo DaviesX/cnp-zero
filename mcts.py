@@ -115,10 +115,14 @@ def __mcts_expand(candid, c_rvs):
     return candids
 
 
-def __mcts_rollout(candids, board, t_stack, rvs, c_rvs, g, N, f):
+def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
     """[summary]
 
     Arguments:
+        d {int}
+            -- current depth.
+        td {int}
+            -- total depth.
         board {[type]} -- [description]
         t_stack {[type]} -- [description]
         rvs {[type]} -- [description]
@@ -139,7 +143,7 @@ def __mcts_rollout(candids, board, t_stack, rvs, c_rvs, g, N, f):
         f.init(board, t_stack, rvs, c_rvs,)
         w = 0
         for _ in range(N):
-            w += f.sample(board, t_stack, rvs, c_rvs, g)
+            w += f.sample(d + 1, td, board, t_stack, rvs, c_rvs, g)
         wins.append(w)
         bd.board_state_restore(t_stack, board, rvs, c_rvs, g)
 
@@ -203,16 +207,17 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
         max_trials {int}
             -- number of MCTS runs.
     """
+    td = len(c_rvs)
+
     root = node(None)
     t_stack = list()
     t = 0
     for _ in range(1, max_trials + 1):
         mpn, path = __mcts_nav2mpm(
             root, the.b, the.c, t, board, t_stack, rvs, c_rvs, g)
-        # Apply the moves.
         candids = __mcts_expand(mpn, c_rvs)
         wins, nt = __mcts_rollout(
-            candids, board, t_stack, rvs, c_rvs, g, the.N, f)
+            candids, len(path), td, board, t_stack, rvs, c_rvs, g, the.N, f)
         t += nt
         __mcts_backprop(candids, the.N, wins, nt, sum(wins), path,
                         board, t_stack, rvs, c_rvs, g)

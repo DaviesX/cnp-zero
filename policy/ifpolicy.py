@@ -25,11 +25,15 @@ class if_policy:
         """
         pass
 
-    def sample(self, board, t_stack, rvs, c_rvs, g):
+    def sample(self, d, td, board, t_stack, rvs, c_rvs, g):
         """Generate a path based on the policy 
            and return whether such path leads to a win.
 
         Arguments:
+            d {int}
+                -- current depth.
+            td {int}
+                -- total depth.
             board {ndarray<N,N>} 
                 -- a [k*k, k*k] shaped integer matrix, with zero representing the free slot.
             t_stack {list<transition>} 
@@ -42,6 +46,6 @@ class if_policy:
                 -- a dependency graph.
 
         Returns:
-            int -- 1 if won, or else 0.
+            float -- 1 if won, or else 0.
         """
         return 0
