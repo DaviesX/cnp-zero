@@ -2,7 +2,8 @@ import math as m
 import numpy as np
 import board as bd
 import gamerule as gr
-from policy import mrv
+from policy.mrv import mrv
+from policy.ifpolicy import if_policy
 
 
 class theta:
@@ -29,7 +30,7 @@ class node:
     """MCT node
     """
 
-    def __init__(self, action):
+    def __init__(self, action: tuple):
         self.action = action
         self.nh = 0
         self.wh = 0
@@ -38,17 +39,17 @@ class node:
         self.children = list()
         self.child_lookup = dict()
 
-    def add_child(self, c):
+    def add_child(self, c) -> None:
         self.children.append(c)
         self.child_lookup[c.action] = c
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "node: {" + str(self.action) + ", " \
             + (str(self.w/self.n) if self.n > 0 else str(0.0)) + ", " \
             + (str(self.wh/self.nh) if self.nh > 0 else str(0.0)) + "}"
 
 
-def __mcts_score(node, b, c, t):
+def __mcts_score(node: node, b: float, c: float, t: int) -> float:
     """[summary]
 
     Arguments:
@@ -66,7 +67,9 @@ def __mcts_score(node, b, c, t):
         (c*m.sqrt(m.log(t)/node.n) if node.n > 0 else 0)
 
 
-def __mcts_nav2mpm(node, b, c, t, board, t_stack, rvs, c_rvs, g):
+def __mcts_nav2mpm(node: node, b: float, c: float, t: int,
+                   board: np.ndarray, t_stack: list,
+                   rvs: np.ndarray, c_rvs: dict, g: dict) -> tuple:
     """Navigate to most promising move.
 
     Arguments:
@@ -107,7 +110,7 @@ def __mcts_nav2mpm(node, b, c, t, board, t_stack, rvs, c_rvs, g):
         return candid, path
 
 
-def __mcts_expand(candid, c_rvs):
+def __mcts_expand(candid: node, rvs: np.ndarray, c_rvs: dict, g: dict) -> list:
     """Expand the candidate node.
 
     Arguments:
@@ -128,7 +131,10 @@ def __mcts_expand(candid, c_rvs):
     return candids
 
 
-def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
+def __mcts_rollout(candids: list, d: int, td: int,
+                   board: np.ndarray, t_stack: list,
+                   rvs: np.ndarray, c_rvs: dict, g: dict,
+                   N: int, f: if_policy):
     """[summary]
 
     Arguments:
@@ -169,7 +175,12 @@ def __mcts_rollout(candids, d, td, board, t_stack, rvs, c_rvs, g, N, f):
     return wins, N*len(candids), sln
 
 
-def __mcts_backprop(candids, N, wins, nt, wt, path, board, t_stack, rvs, c_rvs, g):
+def __mcts_backprop(candids: list,
+                    N: int, wins: int, nt: int, wt: int,
+                    path: list,
+                    board: np.ndarray,
+                    t_stack: list,
+                    rvs: np.ndarray, c_rvs: dict, g: dict):
     """Back propagation.
 
     Arguments:
@@ -208,7 +219,7 @@ def __mcts_backprop(candids, N, wins, nt, wt, path, board, t_stack, rvs, c_rvs, 
             bd.board_state_restore(t_stack, board, rvs, c_rvs, g)
 
 
-def __best_child_of(node):
+def __best_child_of(node: node):
     """Return the most simulated child.
 
     Arguments:
@@ -230,7 +241,9 @@ def __best_child_of(node):
     return best_child
 
 
-def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
+def mcts_heavy(board: np.ndarray,
+               rvs: np.ndarray, c_rvs: dict, g: dict,
+               f: if_policy, the: theta, max_trials=10000):
     """ MCTS with UCB: Q(s,a) + alpha*(Pr(s,a | f_the)/(1 + N(s, a))).
 
     Arguments:
@@ -263,38 +276,39 @@ def mcts_heavy(board, rvs, c_rvs, g, f, the, max_trials=10000):
     for _ in range(1, max_trials + 1):
         mpn, path = __mcts_nav2mpm(
             root, the.b, the.c, t, board, t_stack, rvs, c_rvs, g)
-        candids = __mcts_expand(mpn, c_rvs)
+        candids = __mcts_expand(mpn, rvs, c_rvs, g)
         wins, nt, sln = __mcts_rollout(
             candids, len(path)-1, td, board, t_stack, rvs, c_rvs, g, the.N, f)
         t += nt
         __mcts_backprop(candids, the.N, wins, nt, sum(wins), path,
                         board, t_stack, rvs, c_rvs, g)
 
-        print(len(path))
-        print(path)
-        print(__best_child_of(root))
+        # print(len(path))
+        # print(path)
+        # print(__best_child_of(root))
 
         if len(sln) + len(path) > len(sln_path):
             sln_path = sln + path
             if len(sln_path) - 1 is td:
                 # solved.
                 break
-        print(gr.win_metric(len(sln_path) - 1, td))
+        #print(gr.win_metric(len(sln_path) - 1, td))
 
     answer = np.copy(board)
-
+    actions = list()
     for path_node in sln_path:
         if path_node.action is not None:
+            actions.append(path_node.action)
             i, j, m = path_node.action
             answer[i, j] = m + 1
-    return answer, len(sln_path)-1, t
+    return answer, len(sln_path)-1, t, actions
 
 
 if __name__ == "__main__":
     # test
     np.random.seed(13)
-    k = 4
-    e = 3
+    k = 3
+    e = 4
     s = 1
     board, stones, question = bd.create_random(k, e, s)
     print(board)
@@ -312,8 +326,9 @@ if __name__ == "__main__":
     old_g = g.copy()
     old_crvs = c_rvs.copy()
 
-    answer, k, t = mcts_heavy(
-        question, rvs, c_rvs, g, mrv.mrv(), theta())
+    answer, k, t, actions = mcts_heavy(question,
+                                       rvs, c_rvs, g,
+                                       mrv(), theta())
 
     print("sanity check: ")
     print(np.all(old_question == question))
@@ -328,4 +343,5 @@ if __name__ == "__main__":
     print("completion=" + str(k) + "/" +
           str(n) + "->" + str(gr.win_metric(k, n)))
     print("number of trials=" + str(t))
+    print(actions)
     print(np.all(board == answer))
