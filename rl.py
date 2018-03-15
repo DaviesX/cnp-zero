@@ -52,17 +52,18 @@ def best_action(possible_actions: list) -> tuple:
 
 def solution_collection(storage_path: str,
                         policy: if_policy,
-                        k=3, e=4.0, std=1.0, max_iters=10000, num_boards=10) -> None:
+                        k=3, e=4.0, std=1.0, max_iters=100000, num_boards=10) -> None:
     for step in range(num_boards):
         # prepare question.
         _, _, question = bd.create_random(k, e, std)
         num_holes = np.sum(question == 0)
-        print("question: " + str(question) + ", holes " + str(num_holes))
+        print("question: \n" + str(question) + ",\nholes " + str(num_holes))
         # prepare valid moves.
         t_stack = list()
         rvs, c_rvs, g = bd.remaining_values_deg(question)
         # solve through the question.
-        for _ in range(num_holes):
+        j = 0
+        while j < num_holes:
             # search for possible actions.
             possible_actions = list()
             i = 0
@@ -71,20 +72,24 @@ def solution_collection(storage_path: str,
                                                          rvs, c_rvs, g,
                                                          policy, s.theta(), max_trials=max_iters)
                 i += t
-                if completion == num_holes:
+                if completion == num_holes - j:
                     print("Completed at " + str(i) +
                           ", choose " + str(actions[0]))
                     possible_actions.append((actions[0], t))
-            # save current example.
-            dpid = guid(step)
-            save(storage_path + "/" + dpid, question, possible_actions)
-            # select the best action and move to the next state.
-            next_action = best_action(possible_actions)
-            bd.board_state_transition(t_stack,
-                                      question,
-                                      rvs, c_rvs, g,
-                                      next_action)
-            print("Transition to " + str(next_action))
+            if possible_actions:
+                # save current example.
+                dpid = guid(step)
+                save(storage_path + "/" + dpid, question, possible_actions)
+                # select the best action and move to the next state.
+                next_action = best_action(possible_actions)
+                bd.board_state_transition(t_stack,
+                                          question,
+                                          rvs, c_rvs, g,
+                                          next_action)
+                j += 1
+                print("Transition to " + str(next_action) + ",\n" + str(question))
+            else:
+                print("Retry...")
 
 
 if __name__ == "__main__":

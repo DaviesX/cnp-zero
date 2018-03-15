@@ -267,7 +267,7 @@ def mcts_heavy(board: np.ndarray,
         nt {int}
             -- number of rollout performed after the parent move.
     """
-    td = len(c_rvs)
+    td = np.sum(board == 0)
 
     sln_path = list()
     root = node(None)
