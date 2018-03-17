@@ -289,7 +289,7 @@ def mcts_heavy(board: np.ndarray,
 
         if len(sln) + len(path) > len(sln_path):
             sln_path = sln + path
-            if len(sln_path) - 1 is td:
+            if len(sln_path) - 1 == td:
                 # solved.
                 break
         #print(gr.win_metric(len(sln_path) - 1, td))
