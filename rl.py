@@ -5,6 +5,8 @@ import board as bd
 import numpy as np
 from policy.ifpolicy import if_policy
 from policy.mrv import mrv
+from dataset.ifdataset import compact_solutions
+from dataset.dataset1 import dataset1_create
 
 
 def guid(i: int) -> str:
@@ -21,7 +23,8 @@ def save(dst: str, question: np.ndarray, possible_actions: list) -> None:
         actions[i, 2] = possible_actions[i][0][2]
         actions[i, 3] = possible_actions[i][1]
 
-    np.save(dst + ".s", actions)
+    compacted = compact_solutions(actions)
+    np.save(dst + ".s", compacted)
 
 
 def best_action(possible_actions: list) -> tuple:
@@ -93,4 +96,6 @@ def solution_collection(storage_path: str,
 
 
 if __name__ == "__main__":
-    solution_collection("./dataset/cnp3/original", mrv(), k=3, e=4)
+    #    solution_collection("./dataset/cnp3/original", mrv(), k=3, e=4)
+    dataset1_create("./dataset/cnp3/original", "./dataset/cnp3/org")
+    pass
