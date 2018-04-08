@@ -97,5 +97,5 @@ def solution_collection(storage_path: str,
 
 if __name__ == "__main__":
     #    solution_collection("./dataset/cnp3/original", mrv(), k=3, e=4)
-    dataset1_create("./dataset/cnp3/original", "./dataset/cnp3/org")
+    dataset1_create(3, "./dataset/cnp3/original", "./dataset/cnp3/org")
     pass
