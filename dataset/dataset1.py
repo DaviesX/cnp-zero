@@ -14,10 +14,10 @@ def rotate_question(question: np.ndarray) -> np.ndarray:
         np.ndarray 
             -- The rotated board.
     """
-    _, w = question.shape[0], question.shape[1]
+    h, w = question.shape[0], question.shape[1]
     rot_question = np.zeros(question.shape, dtype=np.int)
-    for i in range(question.shape[0]):
-        for j in range(question.shape[1]):
+    for i in range(h):
+        for j in range(w):
             rot_question[w - 1 - j, i] = question[i, j]
     return rot_question
 
@@ -45,11 +45,42 @@ def rotate_solutions(question: np.ndarray, slns: np.ndarray) -> np.ndarray:
 
 
 def replace_question(question: np.ndarray, mapper: list) -> np.ndarray:
-    pass
+    """Replace the board with other numbers.
+
+    Arguments:
+        question {np.ndarray} 
+            -- board to be rotated.
+        mapper {list} 
+            -- number mapper: mapper[input] -> output.
+
+    Returns:
+        np.ndarray 
+            -- the replaced board.
+    """
+    rep_question = np.zeros(question.shape, dtype=np.int)
+    for i in range(question.shape[0]):
+        for j in range(question.shape[1]):
+            rep_question[i, j] = mapper[question[i, j]]
+    return rep_question
 
 
 def replace_solutions(slns: np.ndarray, mapper: list) -> np.ndarray:
-    pass
+    """Replace the action placement number in solution set with the mapped value.
+
+    Arguments:
+        slns {np.ndarray} 
+            -- The solution set to be replaced.
+        mapper {list} 
+            -- number mapper: mapper[input] -> output.
+
+    Returns:
+        np.ndarray 
+            -- The replaced solution set.
+    """
+    rep_slns = slns.copy()
+    for i in range(slns.shape[0]):
+        rep_slns[i, 2] = mapper[int(rep_slns[i, 2]) + 1] - 1
+    return rep_slns
 
 
 def reorder_question_rows(question: np.ndarray, start: int, end: int, mapper: list) -> np.ndarray:
