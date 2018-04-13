@@ -131,6 +131,54 @@ def reorder_solutions_rows(slns: np.ndarray, start: int, end: int, mapper: list)
     return reordered
 
 
+def reorder_question_cols(question: np.ndarray, start: int, end: int, mapper: list) -> np.ndarray:
+    """Swap columns of the board.
+
+    Arguments:
+        question {np.ndarray} 
+            -- the in which rows are to be swapped.
+        start {int} 
+            -- starting column index.
+        end {int} 
+            -- ending column index.
+        mapper {list} 
+            -- column index mapper: mapper[col_index] -> swapped index.
+
+    Returns:
+        np.ndarray 
+            -- the reordered board.
+    """
+    reordered = question.copy()
+    k = end - start + 1
+    for i in range(k):
+        reordered[:, start + mapper[i]] = question[:, start + i]
+    return reordered
+
+
+def reorder_solutions_cols(slns: np.ndarray, start: int, end: int, mapper: list) -> np.ndarray:
+    """Swap the column index for the solution set.
+
+    Arguments:
+        slns {np.ndarray} 
+            -- the solution set to be swapped.
+        start {int} 
+            -- starting column index.
+        end {int} 
+            -- ending column index.
+        mapper {list} 
+            -- column index mapper: mapper[col_index] -> swapped index.
+
+    Returns:
+        np.ndarray 
+            -- The row reordered solution set.
+    """
+    reordered = slns.copy()
+    for i in range(reordered.shape[0]):
+        if reordered[i, 1] >= start and reordered[i, 1] <= end:
+            reordered[i, 1] = start + mapper[int(reordered[i, 1]) - start]
+    return reordered
+
+
 def dataset1_create(k: int, src_path: str, dst_path: str, perm=10) -> None:
     question_files, solution_files = \
         construct_question_solutions_pairs(src_path)
