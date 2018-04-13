@@ -84,11 +84,51 @@ def replace_solutions(slns: np.ndarray, mapper: list) -> np.ndarray:
 
 
 def reorder_question_rows(question: np.ndarray, start: int, end: int, mapper: list) -> np.ndarray:
-    pass
+    """Swap rows of the board.
+
+    Arguments:
+        question {np.ndarray} 
+            -- the in which rows are to be swapped.
+        start {int} 
+            -- starting row index.
+        end {int} 
+            -- ending row index.
+        mapper {list} 
+            -- row index mapper: mapper[row_index] -> swapped index.
+
+    Returns:
+        np.ndarray 
+            -- the reordered board.
+    """
+    reordered = question.copy()
+    k = end - start + 1
+    for i in range(k):
+        reordered[start + mapper[i], :] = question[start + i, :]
+    return reordered
 
 
 def reorder_solutions_rows(slns: np.ndarray, start: int, end: int, mapper: list) -> np.ndarray:
-    pass
+    """Swap the row index for the solution set.
+
+    Arguments:
+        slns {np.ndarray} 
+            -- the solution set to be swapped.
+        start {int} 
+            -- starting row index.
+        end {int} 
+            -- ending row index.
+        mapper {list} 
+            -- row index mapper: mapper[row_index] -> swapped index.
+
+    Returns:
+        np.ndarray 
+            -- The row reordered solution set.
+    """
+    reordered = slns.copy()
+    for i in range(reordered.shape[0]):
+        if reordered[i, 0] >= start and reordered[i, 0] <= end:
+            reordered[i, 0] = start + mapper[int(reordered[i, 0]) - start]
+    return reordered
 
 
 def dataset1_create(k: int, src_path: str, dst_path: str, perm=10) -> None:
