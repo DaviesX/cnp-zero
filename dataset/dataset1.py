@@ -7,11 +7,11 @@ def rotate_question(question: np.ndarray) -> np.ndarray:
     """Rotate the board 90 degrees clockwise.
 
     Arguments:
-        question {np.ndarray} 
+        question {np.ndarray}
             -- board to be rotated.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- The rotated board.
     """
     h, w = question.shape[0], question.shape[1]
@@ -26,13 +26,13 @@ def rotate_solutions(question: np.ndarray, slns: np.ndarray) -> np.ndarray:
     """Rotate the solution set 90 degrees clockwise.
 
     Arguments:
-        question {np.ndarray} 
+        question {np.ndarray}
             -- Question for which the solutions are given.
-        slns {np.ndarray} 
+        slns {np.ndarray}
             -- The solutions set to the question.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- The rotated solution set.
     """
     _, w = question.shape[0], question.shape[1]
@@ -48,13 +48,13 @@ def replace_question(question: np.ndarray, mapper: list) -> np.ndarray:
     """Replace the board with other numbers.
 
     Arguments:
-        question {np.ndarray} 
+        question {np.ndarray}
             -- board to be rotated.
-        mapper {list} 
+        mapper {list}
             -- number mapper: mapper[input] -> output.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- the replaced board.
     """
     rep_question = np.zeros(question.shape, dtype=np.int)
@@ -68,13 +68,13 @@ def replace_solutions(slns: np.ndarray, mapper: list) -> np.ndarray:
     """Replace the action placement number in solution set with the mapped value.
 
     Arguments:
-        slns {np.ndarray} 
+        slns {np.ndarray}
             -- The solution set to be replaced.
-        mapper {list} 
+        mapper {list}
             -- number mapper: mapper[input] -> output.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- The replaced solution set.
     """
     rep_slns = slns.copy()
@@ -87,17 +87,17 @@ def reorder_question_rows(question: np.ndarray, start: int, end: int, mapper: li
     """Swap rows of the board.
 
     Arguments:
-        question {np.ndarray} 
+        question {np.ndarray}
             -- the in which rows are to be swapped.
-        start {int} 
+        start {int}
             -- starting row index.
-        end {int} 
+        end {int}
             -- ending row index.
-        mapper {list} 
+        mapper {list}
             -- row index mapper: mapper[row_index] -> swapped index.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- the reordered board.
     """
     reordered = question.copy()
@@ -111,17 +111,17 @@ def reorder_solutions_rows(slns: np.ndarray, start: int, end: int, mapper: list)
     """Swap the row index for the solution set.
 
     Arguments:
-        slns {np.ndarray} 
+        slns {np.ndarray}
             -- the solution set to be swapped.
-        start {int} 
+        start {int}
             -- starting row index.
-        end {int} 
+        end {int}
             -- ending row index.
-        mapper {list} 
+        mapper {list}
             -- row index mapper: mapper[row_index] -> swapped index.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- The row reordered solution set.
     """
     reordered = slns.copy()
@@ -135,17 +135,17 @@ def reorder_question_cols(question: np.ndarray, start: int, end: int, mapper: li
     """Swap columns of the board.
 
     Arguments:
-        question {np.ndarray} 
+        question {np.ndarray}
             -- the in which rows are to be swapped.
-        start {int} 
+        start {int}
             -- starting column index.
-        end {int} 
+        end {int}
             -- ending column index.
-        mapper {list} 
+        mapper {list}
             -- column index mapper: mapper[col_index] -> swapped index.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- the reordered board.
     """
     reordered = question.copy()
@@ -159,17 +159,17 @@ def reorder_solutions_cols(slns: np.ndarray, start: int, end: int, mapper: list)
     """Swap the column index for the solution set.
 
     Arguments:
-        slns {np.ndarray} 
+        slns {np.ndarray}
             -- the solution set to be swapped.
-        start {int} 
+        start {int}
             -- starting column index.
-        end {int} 
+        end {int}
             -- ending column index.
-        mapper {list} 
+        mapper {list}
             -- column index mapper: mapper[col_index] -> swapped index.
 
     Returns:
-        np.ndarray 
+        np.ndarray
             -- The row reordered solution set.
     """
     reordered = slns.copy()
@@ -179,27 +179,75 @@ def reorder_solutions_cols(slns: np.ndarray, start: int, end: int, mapper: list)
     return reordered
 
 
+def dataset_create_one(k: int,
+                       question_file: str, solutions_file: str,
+                       dst_question_file: str, dst_solutions_file: str,
+                       perm: int) -> None:
+    question = np.load(question_file)
+    solutions = np.load(solutions_file)
+
+    number_mapper = [i for i in range(1, k*k+1)]
+    variation = 0
+
+    for i in range(4):
+        # rotation.
+        rot_question = rotate_question(question)
+        rot_solutions = rotate_solutions(question, solutions)
+        question = rot_question
+        solutions = rot_solutions
+        for m in range(k):
+            for j0 in it.permutations([i for i in range(k)], k):
+                # row swap.
+                row_question = reorder_question_rows(rot_question,
+                                                     k * m, k * (m + 1) - 1,
+                                                     j0)
+                row_solutions = reorder_solutions_rows(rot_solutions,
+                                                       k * m, k * (m + 1) - 1,
+                                                       j0)
+                rot_question = row_question
+                rot_solutions = row_solutions
+
+                for n in range(k):
+                    for j1 in it.permutations([i for i in range(k)], k):
+                        # col swap.
+                        col_question = reorder_question_cols(row_question,
+                                                             k * n,
+                                                             k * (n + 1) - 1,
+                                                             j1)
+                        col_solutions = reorder_solutions_cols(row_solutions,
+                                                               k * n,
+                                                               k * (n + 1) - 1,
+                                                               j1)
+                        row_question = col_question
+                        row_solutions = col_solutions
+                        for l in range(10):
+                            # number replacement.
+                            actual_number_mapper = [0] + \
+                                np.random.shuffle(number_mapper)
+                            rep_question = replace_question(row_question,
+                                                            actual_number_mapper)
+                            rep_solutions = replace_solutions(row_solutions,
+                                                              actual_number_mapper)
+                            np.save(dst_question_file + "_"
+                                    + str(variation) + ".q",
+                                    rep_question)
+                            np.save(dst_solutions_file + "_"
+                                    + str(variation) + ".s",
+                                    rep_solutions)
+                            variation += 1
+
+
 def dataset1_create(k: int, src_path: str, dst_path: str, perm=10) -> None:
-    question_files, solution_files = \
+    question_files, solutions_files = \
         construct_question_solutions_pairs(src_path)
 
     for i in range(len(question_files)):
-        question_file, solution_file = question_files[i], solution_files[i]
-        question = np.load(question_file)
-        solutions = np.load(solution_file)
-        for i in range(4):
-            # rotation.
-            question = rotate_question(question)
-            solutions = rotate_solutions(question, solutions)
-            for m in range(k):
-                # row swap
-                for n in range(k):
-                    # col swap
-                    for j in it.permutations([i for i in range(k)], k):
-                        # row and col permutations.
-                        for l in range(10):
-                            # number replacement.
-                            pass
+        question_file, solutions_file = question_files[i], solutions_files[i]
+        dataset_create_one(k,
+                           question_file, solutions_file,
+                           dst_path + "/" + question_file.split(".")[0],
+                           dst_path + "/" + solutions_file.split(".")[0],
+                           perm)
 
 
 class dataset1(if_dataset):
