@@ -189,7 +189,7 @@ def dataset_create_one(k: int,
     number_mapper = [i for i in range(1, k*k+1)]
     variation = 0
 
-    for i in range(4):
+    for _ in range(4):
         # rotation.
         rot_question = rotate_question(question)
         rot_solutions = rotate_solutions(question, solutions)
@@ -220,19 +220,21 @@ def dataset_create_one(k: int,
                                                                j1)
                         row_question = col_question
                         row_solutions = col_solutions
-                        for l in range(10):
+                        for _ in range(2):
                             # number replacement.
-                            actual_number_mapper = [0] + \
-                                np.random.shuffle(number_mapper)
+                            np.random.shuffle(number_mapper)
+                            actual_number_mapper = [0] + number_mapper
                             rep_question = replace_question(row_question,
                                                             actual_number_mapper)
                             rep_solutions = replace_solutions(row_solutions,
                                                               actual_number_mapper)
-                            np.save(dst_question_file + "_"
-                                    + str(variation) + ".q",
+
+                            file_prefix = dst_question_file + \
+                                "_" + str(variation)
+                            print("generating " + file_prefix)
+                            np.save(file_prefix + ".q",
                                     rep_question)
-                            np.save(dst_solutions_file + "_"
-                                    + str(variation) + ".s",
+                            np.save(file_prefix + ".s",
                                     rep_solutions)
                             variation += 1
 
@@ -244,7 +246,8 @@ def dataset1_create(k: int, src_path: str, dst_path: str, perm=10) -> None:
     for i in range(len(question_files)):
         question_file, solutions_file = question_files[i], solutions_files[i]
         dataset_create_one(k,
-                           question_file, solutions_file,
+                           src_path + "/" + question_file,
+                           src_path + "/" + solutions_file,
                            dst_path + "/" + question_file.split(".")[0],
                            dst_path + "/" + solutions_file.split(".")[0],
                            perm)
