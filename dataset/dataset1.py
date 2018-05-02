@@ -255,7 +255,7 @@ def dataset1_create(k: int, src_path: str, dst_path: str, perm=10) -> None:
 
 class dataset1(if_dataset):
     def __init__(self, storage_path: str):
-        pass
+        self.storage_path = storage_path
 
     def ring_fetch(self, amount: int) -> tuple:
         pass
